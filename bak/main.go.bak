@@ -1,0 +1,223 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"math/rand"
+	"os"
+	"os/exec"
+	"time"
+)
+
+func main() {
+	// Parse command line arguments
+	help := flag.Bool("h", false, "Show help")
+	helpLong := flag.Bool("help", false, "Show help")
+	// noscroll is on by default
+	noScroll := flag.Bool("noscroll", true, "Disable scrolling")
+	gen := flag.Int("gen", 500, "Number of generations")
+	sleep := flag.Float64("sleep", 0.03, "Sleep between generations (seconds)")
+	seed := flag.Int64("seed", 0, "Random seed (0 for random)")
+	
+	flag.Parse()
+	
+	// Show help
+	if *help || *helpLong {
+		showHelp()
+		return
+	}
+	
+	// Handle positional arguments for grid size
+	var width, height int
+	args := flag.Args()
+	
+	if len(args) > 0 {
+		switch args[0] {
+		case "+":
+			width, height = 10, 10
+		case "++":
+			width, height = 20, 20
+		case "+++":
+			width, height = 30, 30
+		case "++++":
+			width = getTerminalWidth() / 2
+			height = getTerminalHeight() - 1
+		default:
+			width, height = 5, 5
+		}
+	} else {
+		width, height = 5, 5
+	}
+	
+	// Initialize random seed
+	if *seed == 0 {
+		*seed = rand.Int63()
+	}
+	rand.Seed(*seed)
+	
+	// Create grid
+	size := width * height
+	grid := make([]int, size)
+	next := make([]int, size)
+	
+	// Random initialization
+	for i := 0; i < size; i++ {
+		grid[i] = rand.Intn(2)
+	}
+	
+	// Hide cursor if no-scroll mode
+	if *noScroll {
+		hideCursor()
+		defer showCursor()
+		clearScreen()
+	} else {
+		showCursor()
+		defer showCursor()
+	}
+	
+	// Main game loop
+	for g := 0; g < *gen; g++ {
+		aliveAny := false
+		
+		// Calculate next generation
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				count := 0
+				
+				// Check all 8 neighbors
+				for dy := -1; dy <= 1; dy++ {
+					for dx := -1; dx <= 1; dx++ {
+						if dx == 0 && dy == 0 {
+							continue
+						}
+						
+						nx := (x + dx + width) % width
+						ny := (y + dy + height) % height
+						count += grid[nx+ny*width]
+					}
+				}
+				
+				// Apply Game of Life rules
+				idx := x + y*width
+				if grid[idx] == 1 {
+					if count == 2 || count == 3 {
+						next[idx] = 1
+					} else {
+						next[idx] = 0
+					}
+				} else {
+					if count == 3 {
+						next[idx] = 1
+					} else {
+						next[idx] = 0
+					}
+				}
+				
+				if next[idx] == 1 {
+					aliveAny = true
+				}
+			}
+		}
+		
+		// Exit if no alive cells
+		if !aliveAny {
+			break
+		}
+		
+		// Swap grids
+		grid, next = next, grid
+		
+		// Draw frame
+		if *noScroll {
+			moveCursorToTop()
+		} else {
+			fmt.Println()
+		}
+		
+		draw(grid, width, height)
+		
+		// Sleep if specified
+		if *sleep > 0 {
+			time.Sleep(time.Duration(*sleep * float64(time.Second)))
+		}
+	}
+}
+
+
+
+func draw(grid []int, width, height int) {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			if grid[x+y*width] == 1 {
+				fmt.Print("⬜")
+			} else {
+				fmt.Print("  ")
+			}
+		}
+		fmt.Println()
+	}
+}
+
+func showHelp() {
+	fmt.Print(`Examples:
+
+gameOfLife +           # 10x10
+gameOfLife ++          # 20x20
+gameOfLife +++         # 30x30
+gameOfLife ++++        # full term screen
+
+Usage with flags:
+  -gen int        Number of generations (default 100)
+  -seed int       Random seed (0 for random)
+  -sleep float    Sleep between generations in seconds (default 0)
+  -noscroll       Disable scrolling and use in-place updates
+  -h, -help       Show this help
+
+Examples with flags:
+  gameOfLife -gen=200 -sleep=0.1 ++++
+  gameOfLife -seed=123 -noscroll ++
+`)
+}
+
+func getTerminalWidth() int {
+	cmd := exec.Command("stty", "size")
+	cmd.Stdin = os.Stdin
+	out, err := cmd.Output()
+	if err != nil {
+		return 80
+	}
+	
+	// Parse "height width"
+	var height, width int
+	fmt.Sscanf(string(out), "%d %d", &height, &width)
+	return width
+}
+
+func getTerminalHeight() int {
+	cmd := exec.Command("stty", "size")
+	cmd.Stdin = os.Stdin
+	out, err := cmd.Output()
+	if err != nil {
+		return 24
+	}
+	
+	var height, width int
+	fmt.Sscanf(string(out), "%d %d", &height, &width)
+	return height
+}
+
+func hideCursor() {
+	fmt.Print("\033[?25l")
+}
+
+func showCursor() {
+	fmt.Print("\033[?25h")
+}
+
+func clearScreen() {
+	fmt.Print("\033[2J")
+}
+
+func moveCursorToTop() {
+	fmt.Print("\033[H")
+}
