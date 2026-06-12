@@ -17,3 +17,5 @@ see
 note: 1st pass is random, then the game starts.
 
 Written mostly by deepseek in 2026, based on my old bash script.
+
+![scrot](scrot/golGolang.png)
