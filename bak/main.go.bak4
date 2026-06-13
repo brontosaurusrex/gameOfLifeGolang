@@ -70,10 +70,6 @@ func main() {
 	grid := make([]int, size)
 	next := make([]int, size)
 	
-	// Store previous states for stabilization detection
-	// Using map with string keys for state history
-	stateHistory := make(map[string]int)
-	
 	// Random initialization
 	for i := 0; i < size; i++ {
 		grid[i] = rand.Intn(2)
@@ -125,27 +121,8 @@ func main() {
 		
 		// Exit if no alive cells
 		if !aliveAny {
-			moveCursorToBottom(height)
-			fmt.Printf("Extinction: All cells died at generation %d\n", g+1)
 			break
 		}
-		
-		// Check for stabilization before swapping
-		currentState := stateToString(grid, width, height)
-		if firstGen, exists := stateHistory[currentState]; exists {
-			period := g - firstGen
-			moveCursorToBottom(height)
-			if period == 1 {
-				fmt.Printf("Stabilized: Still life detected at generation %d\n", g+1)
-			} else {
-				fmt.Printf("Stabilized: Oscillator detected with period %d (first seen at gen %d, repeats at gen %d)\n", 
-					period, firstGen+1, g+1)
-			}
-			break
-		}
-		
-		// Store current state in history
-		stateHistory[currentState] = g
 		
 		// Swap grids
 		grid, next = next, grid
@@ -172,24 +149,6 @@ func draw(grid []int, width, height int) {
 	}
 }
 
-// Convert grid state to string for history tracking
-func stateToString(grid []int, width, height int) string {
-	// Simple but effective string representation
-	state := make([]byte, len(grid))
-	for i, val := range grid {
-		if val == 1 {
-			state[i] = '1'
-		} else {
-			state[i] = '0'
-		}
-	}
-	return string(state)
-}
-
-func moveCursorToBottom(height int) {
-	fmt.Printf("\033[%d;0H", height+3)
-}
-
 func showHelp() {
 	fmt.Print(`Game of Life - Fullscreen Terminal Version
 
@@ -201,13 +160,6 @@ Options:
   -seed int       Random seed (0 for random, seed will be printed at exit)
   -sleep float    Sleep between generations in seconds (default 0.03)
   -h, -help       Show this help
-
-Exit Conditions:
-  - Extinction: All cells die
-  - Still life: Pattern stops changing (period 1)
-  - Oscillator: Pattern repeats with period > 1
-  - Max generations: Reached -gen limit
-  - Ctrl+C: Manual interrupt
 
 Examples:
   gameOfLife                     # Run with defaults
