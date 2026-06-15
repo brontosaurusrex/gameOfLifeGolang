@@ -18,34 +18,34 @@ func main() {
 	gen := flag.Int("gen", 1000, "Number of generations")
 	sleep := flag.Float64("sleep", 0.03, "Sleep between generations (seconds)")
 	seed := flag.Int64("seed", 0, "Random seed (0 for random)")
-
+	
 	flag.Parse()
-
+	
 	// Show help
 	if *help || *helpLong {
 		showHelp()
 		return
 	}
-
+	
 	// Use full terminal size
 	width := getTerminalWidth() / 2
 	height := getTerminalHeight() - 1
-
+	
 	// Initialize random seed
 	if *seed == 0 {
 		*seed = rand.Int63()
 	}
 	rand.Seed(*seed)
-
+	
 	// Set up signal handling for Ctrl+C
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
+	
 	// Hide cursor and clear screen (noscroll mode by default)
 	hideCursor()
 	defer showCursor()
 	clearScreen()
-
+	
 	// Handle Ctrl+C gracefully
 	go func() {
 		<-sigChan
@@ -57,50 +57,50 @@ func main() {
 		fmt.Printf("Seed: %d\n", *seed)
 		os.Exit(0)
 	}()
-
+	
 	// Print seed at exit
 	defer func() {
 		// Move cursor to bottom before printing seed
 		fmt.Printf("\033[%d;0H", height+2)
 		fmt.Printf("\nSeed: %d\n", *seed)
 	}()
-
+	
 	// Create grid
 	size := width * height
 	grid := make([]int, size)
 	next := make([]int, size)
-
+	
 	// Store previous states for stabilization detection
 	// Using map with string keys for state history
 	stateHistory := make(map[string]int)
-
+	
 	// Random initialization
 	for i := 0; i < size; i++ {
 		grid[i] = rand.Intn(2)
 	}
-
+	
 	// Main game loop
 	for g := 0; g < *gen; g++ {
 		aliveAny := false
-
+		
 		// Calculate next generation
 		for y := 0; y < height; y++ {
 			for x := 0; x < width; x++ {
 				count := 0
-
+				
 				// Check all 8 neighbors
 				for dy := -1; dy <= 1; dy++ {
 					for dx := -1; dx <= 1; dx++ {
 						if dx == 0 && dy == 0 {
 							continue
 						}
-
+						
 						nx := (x + dx + width) % width
 						ny := (y + dy + height) % height
 						count += grid[nx+ny*width]
 					}
 				}
-
+				
 				// Apply Game of Life rules
 				idx := x + y*width
 				if grid[idx] == 1 {
@@ -116,20 +116,20 @@ func main() {
 						next[idx] = 0
 					}
 				}
-
+				
 				if next[idx] == 1 {
 					aliveAny = true
 				}
 			}
 		}
-
+		
 		// Exit if no alive cells
 		if !aliveAny {
 			moveCursorToBottom(height)
 			fmt.Printf("Extinction: All cells died at generation %d\n", g+1)
 			break
 		}
-
+		
 		// Check for stabilization before swapping
 		currentState := stateToString(grid, width, height)
 		if firstGen, exists := stateHistory[currentState]; exists {
@@ -138,22 +138,22 @@ func main() {
 			if period == 1 {
 				fmt.Printf("Stabilized: Still life detected at generation %d\n", g+1)
 			} else {
-				fmt.Printf("Stabilized: Oscillator detected with period %d (first seen at gen %d, repeats at gen %d)\n",
+				fmt.Printf("Stabilized: Oscillator detected with period %d (first seen at gen %d, repeats at gen %d)\n", 
 					period, firstGen+1, g+1)
 			}
 			break
 		}
-
+		
 		// Store current state in history
 		stateHistory[currentState] = g
-
+		
 		// Swap grids
 		grid, next = next, grid
-
+		
 		// Draw frame (in-place update)
 		moveCursorToTop()
 		draw(grid, width, height)
-
+		
 		// Sleep between generations
 		time.Sleep(time.Duration(*sleep * float64(time.Second)))
 	}
@@ -227,7 +227,7 @@ func getTerminalWidth() int {
 	if err != nil {
 		return 80
 	}
-
+	
 	// Parse "height width"
 	var height, width int
 	fmt.Sscanf(string(out), "%d %d", &height, &width)
@@ -241,7 +241,7 @@ func getTerminalHeight() int {
 	if err != nil {
 		return 24
 	}
-
+	
 	var height, width int
 	fmt.Sscanf(string(out), "%d %d", &height, &width)
 	return height
