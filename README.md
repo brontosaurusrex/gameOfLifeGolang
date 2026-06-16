@@ -1,3 +1,5 @@
+![scrot](scrot/golGolang.png)
+
 ## Game of Life - Terminal Edition
 
 Conway's Game of Life implemented in Go with fullscreen terminal visualization.
@@ -25,4 +27,3 @@ Written mostly by deepseek in 2026, based on my old bash script.
     space   = play/pause
     , and . = frame by frame inspection
 
-![scrot](scrot/golGolang.png)
